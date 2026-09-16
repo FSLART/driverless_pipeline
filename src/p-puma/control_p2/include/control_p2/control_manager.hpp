@@ -1,0 +1,52 @@
+#ifndef TARGET_H_
+#define TARGET_H_
+
+#include "utils.hpp"
+#include ALGORITHM
+#include <fstream>
+#include <Eigen/Dense>
+
+#include "rclcpp/rclcpp.hpp"
+#include "visualization_msgs/msg/marker.hpp"
+
+class ControlManager {
+    public: 
+        ControlManager();
+        void set_path(lart_msgs::msg::PathArray path);
+        void set_dynamics(lart_msgs::msg::Dynamics dynamics);
+        void set_pose(geometry_msgs::msg::PoseStamped pose);
+        void initialize_algorithm(float missionSpeed, float lookahead_time, float tau, float kv, float curvature_gain, float kp, float ki, float kd);
+        void set_missionSpeed(float missionSpeed);
+        void set_lookahead_time(float lookahead_time);
+        void set_tau(float tau);
+        void set_kv(float kv);
+        void set_curvature_gain(float curvature_gain);
+        void set_kp(float kp);
+        void set_ki(float ki);
+        void set_kd(float kd);
+        lart_msgs::msg::DynamicsCMD getDynamicsCMD();
+        Control_Algorithm * get_algorithm();
+        lart_msgs::msg::PathArray get_currentPath();
+        geometry_msgs::msg::PoseStamped get_currentPose();
+        float get_currentSpeed();
+        float get_currentSteering();
+        visualization_msgs::msg::Marker get_target_marker();
+        void log_info();
+        void terminate_algorithm();
+        void finish_sequence();
+
+        //float get_lookahead_distance();
+
+    private:
+        std::unique_ptr<Control_Algorithm> algorithm;
+    protected:
+        // Parameters
+        float currentSpeed;
+        float currentSteering;
+        float missionSpeed;
+        geometry_msgs::msg::PoseStamped currentPose;
+        lart_msgs::msg::PathArray currentPath;
+        float lookahead;
+};
+
+#endif

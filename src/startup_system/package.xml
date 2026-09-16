@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>startup_system</name>
+  <version>0.0.1</version>
+  <description>Startup launch package to initialize all nodes</description>
+  <maintainer email="2221411@my.ipleiria.pt">João Roxo</maintainer>
+  <license>Apache-2.0</license>
+
+  <!-- Ferramentas de build -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Dependências de runtime dos launch files -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <!-- Pacotes que os launch files podem lançar -->
+  <exec_depend>zed_bridge</exec_depend>
+  <exec_depend>mission_controller</exec_depend>
+  <exec_depend>race_director</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>foxglove_bridge</exec_depend>
+  <exec_depend>p-puma</exec_depend>
+  <exec_depend>can_bridge</exec_depend>
+  <exec_depend>graph_slam</exec_depend>
+  <exec_depend>xsens_mti_ros2_driver</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

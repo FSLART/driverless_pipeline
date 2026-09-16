@@ -1,0 +1,77 @@
+cmake_minimum_required(VERSION 3.8)
+project(p-puma)
+
+set(library_name p-puma)
+set(lib_srcs
+  src/control_node.cpp
+  src/control_manager.cpp
+  src/math/sacc_pursuit.cpp
+)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic -Wno-unknown-pragmas)  # added -Wno-unknown-pragmas
+endif()
+
+# Find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(lart_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(GTest REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
+
+include_directories(
+  include
+  ${CMAKE_SOURCE_DIR}/../../lart_common
+)
+
+add_library(${library_name} ${lib_srcs})
+ament_target_dependencies(${library_name} rclcpp lart_msgs tf2 tf2_geometry_msgs visualization_msgs)
+
+# Ensure the warning is disabled for the library target as well
+target_compile_options(${library_name} PRIVATE -Wno-unknown-pragmas)
+
+add_executable(control_node src/control_node.cpp)
+ament_target_dependencies(control_node rclcpp lart_msgs tf2 tf2_geometry_msgs visualization_msgs)
+
+# Disable the warning for the executable target
+target_compile_options(control_node PRIVATE -Wno-unknown-pragmas)
+
+target_include_directories(control_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${CMAKE_SOURCE_DIR}/../../lart_common
+)
+
+target_link_libraries(control_node ${library_name})
+
+install(TARGETS
+  control_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY include/
+  DESTINATION include
+)
+
+install(
+  DIRECTORY ../launch ../config
+  DESTINATION share/${PROJECT_NAME}
+)
+
+# ------------------- UNIT TESTS -------------------
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  ament_add_gtest(test_manager ../test/test_manager.cpp)
+  target_link_libraries(test_manager ${library_name})
+  ament_target_dependencies(test_manager rclcpp lart_msgs tf2 tf2_geometry_msgs visualization_msgs)
+  
+  ament_add_gtest(test_plan ../test/test_plan.cpp)
+  target_link_libraries(test_plan ${library_name})
+  ament_target_dependencies(test_plan rclcpp lart_msgs tf2 tf2_geometry_msgs visualization_msgs)
+endif()
+
+ament_package()

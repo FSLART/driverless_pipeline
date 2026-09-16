@@ -1,0 +1,19 @@
+puma_node:
+  ros__parameters:
+    sim_mode: false
+    log_info: false
+    target_marker_visible: true
+    fsl_flag: false
+    acc_mode: false
+    fsl_speed: 3.0
+    default_max_speed: 2.5
+    acc_speed: 6.0
+    skidpad_speed: 2.5
+    ebs_speed: 12.0
+    lookahead_time: 0.6
+    tau: 0.1
+    kv: 0.2
+    curvature_gain: 2.0
+    kp: 0.7
+    ki: 0.5
+    kd: 0.0

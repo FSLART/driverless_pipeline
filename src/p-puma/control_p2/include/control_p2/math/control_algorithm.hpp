@@ -1,0 +1,80 @@
+#ifndef CONTROL_ALGORITHM_H_
+#define CONTROL_ALGORITHM_H_
+
+#include "../utils.hpp"
+
+#include <algorithm>
+#include <optional>
+#include <cmath>
+#include <algorithm>
+#include <tf2/LinearMath/Transform.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
+using namespace std;
+
+class PID_Controller{
+    public:
+        //Functions
+        PID_Controller() = default;
+        PID_Controller(float kp, float ki, float kd);
+
+        // Feedforward-aware PID with COMBINED-signal anti-windup.
+        // ff_cmd is the already-normalized feedforward command. Because ff and
+        // fb sum before the +/-1 saturation, watching only the PID output is
+        // insufficient: integration is frozen when the combined command would
+        // saturate AND the error pushes further into saturation. Returns fb_cmd.
+        float compute(float setpoint, float input, float dt, float ff_cmd);
+        void set_P(float kp);
+        void set_I(float ki);
+        void set_D(float kd);
+        void reset();
+
+    protected:
+        float kp, ki, kd;
+        float error_prev, error_sum;
+};
+
+class Control_Algorithm {
+    public:
+        Control_Algorithm(float missionSpeed, float lookahead_time, float tau, float kv, float curvature_gain, float kp, float ki, float kd);
+        lart_msgs::msg::DynamicsCMD calculate_control(lart_msgs::msg::PathArray path, geometry_msgs::msg::PoseStamped pose,
+             float current_speed, float current_steering);
+
+        geometry_msgs::msg::PoseStamped get_target_point();
+        void set_missionSpeed(float missionSpeed);
+        void set_lookahead_time(float lookahead_time);
+        void set_tau(float tau);
+        void set_kv(float kv);
+        void set_curvature_gain(float curvature_gain);
+        void set_kp(float kp);
+        void set_ki(float ki);
+        void set_kd(float kd);
+    private:
+        // functions
+        float calculate_lookahead(float preview_curvature, float speed);
+        int fastRound(float x);
+        float calculate_desiredSpeed(float preview_curvature);
+        float lowPassFilter(float input, float dt);
+        float preview_abs_curvature(lart_msgs::msg::PathArray path);
+        float calculate_feedforward_accel(const lart_msgs::msg::PathArray &path);
+        
+        
+        // Parameters
+        lart_msgs::msg::DynamicsCMD prevOutput;
+        rclcpp::Time prevTime;
+
+        int closest_point_index = -1;
+        geometry_msgs::msg::PoseStamped target_point;
+        float missionSpeed;
+        float lookahead_time;
+        float tau;
+        float kv;
+        float curvature_gain;
+        VehicleModel vehicle = VehicleModel();
+
+        // PID Controller
+        PID_Controller pid_controller;
+         
+};
+
+#endif
