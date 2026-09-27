@@ -1,5 +1,22 @@
 # ZED_Bridge
+
 ROS bridge for the ZED 2i camera, since the official shitty one doesn't work.
+
+## Summary
+
+`ZedBridge` is a composable node (`rclcpp_components`) that drives the ZED
+camera through the ZED SDK and runs cone detection with a custom YOLOv8 ONNX
+model (`yolo_v8_n.onnx`) on the SDK's object detector. Detections are placed
+in 3D using the point cloud and published as:
+
+- `/mapping/cones` (`lart_msgs/ConeArray`) and `/mapping/cone_markers`
+- `/zed/image_annotations` (Foxglove bounding boxes)
+- `/zed/left/image_raw` and `/zed/depth/image_raw` with their `camera_info`
+
+It also serves `/zed/last_timestamp` as a heartbeat and can report an
+emergency on `/state/nodes`. The launch files start the node (optionally in a
+container with the rosbag recorder from `config/recorder_config.yaml`) plus
+the static transforms from `base_footprint` to the camera frames.
 
 ## Setup
 

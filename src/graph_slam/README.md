@@ -1,5 +1,10 @@
 # graph_slam
 
+**Summary:** builds a cone map and estimates the car pose from `/mapping/cones`,
+wheel speed and IMU yaw rate using a g2o pose graph; publishes `/slam/map`,
+`/slam/pose` and lap statistics on `/slam/stats`, and saves/loads maps per
+mission.
+
 A ROS 2 (`ament_cmake`) package implementing graph-based SLAM for cone observations, built on [g2o](https://github.com/RainerKuemmerle/g2o) (SE2 pose graph) with PCL-accelerated landmark association and mission-aware map persistence.
 
 ## Overview

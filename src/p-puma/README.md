@@ -1,6 +1,11 @@
 ![Project logo](doc/puma_banner.png)
 # P-PUMA Control System
 
+**Summary:** path-tracking controller (`p-puma`, executable `control_node`).
+Follows the planned path on `/path` from the `/slam/pose` estimate using a
+compile-time selected pursuit algorithm, and publishes steering plus RPM or
+acceleration commands on `/control/rpm_target` / `/control/torque_target`.
+
 A ROS 2 C++ package implementing advanced path tracking control algorithms for autonomous vehicle guidance. The system provides multiple pursuit-based strategies (Pure Pursuit, LP Pursuit, ACC Pursuit) with configurable vehicle dynamics models.
 
 ## Overview

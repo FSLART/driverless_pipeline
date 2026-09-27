@@ -1,5 +1,15 @@
 # FaSTTUBe_planner
 
+## Summary
+
+ROS 2 Python package `path_planner` wrapping FaSTTUBe's
+[`fsd_path_planning`](https://github.com/papalotis/ft-fsd-path-planning).
+The `my_node` node takes the cone map from `/slam/map` and the car pose from
+`/slam/pose`, sorts cones by colour, and publishes the planned centreline as
+`lart_msgs/PathArray` on `/path` (x, y, curvature and distance per point) and
+as a `nav_msgs/Path` on `/path/markers` for RViz. The planner mode (mission
+type) is set with the `planner_mode` parameter (default `4`).
+
 The algorithm requires the following inputs:
 
 - The car's current position and orientation in the slam map
