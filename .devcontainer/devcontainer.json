@@ -1,0 +1,30 @@
+{
+  "name": "driverless-pipeline",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/ros2_ws,type=bind",
+  "workspaceFolder": "/ros2_ws",
+  "remoteUser": "ros",
+  // GPU (zed_bridge) when the host has one; everything else runs without it.
+  "hostRequirements": { "gpu": "optional" },
+  // virtual CAN bus and USB devices (ZED camera, Xsens, CAN adapters on Linux hosts)
+  "runArgs": ["--privileged"],
+  "mounts": [
+    // TensorRT engine the ZED SDK builds from the ONNX model, kept across rebuilds
+    "source=driverless-zed-resources,target=/usr/local/zed/resources,type=volume"
+  ],
+  // Foxglove bridge
+  "forwardPorts": [8765],
+  // packages from other repositories, built with the rest by colcon
+  "postCreateCommand": "mkdir -p src/external && vcs import --skip-existing --input external.repos src/external",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools-extension-pack",
+        "ms-python.python"
+      ]
+    }
+  }
+}

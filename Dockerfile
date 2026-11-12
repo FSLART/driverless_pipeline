@@ -1,19 +1,16 @@
-# Driverless pipeline image for the Jetson Orin NX (JetPack 6.x / L4T 36.4, Ubuntu 22.04).
+# Deploy image for the Jetson Orin NX on the car (JetPack 6.x / L4T 36.4,
+# Ubuntu 22.04, ROS 2 Humble). The workspace is built into the image and the
+# default command starts the car's stack. The dev container for PCs is
+# .devcontainer/Dockerfile; keep the dependency sections of both in step.
 #
 # The l4t-jetpack base image already contains CUDA, cuDNN and TensorRT, which the
 # ZED SDK needs to build zed_bridge and to run the custom YOLO ONNX detector.
 ARG L4T_IMAGE=nvcr.io/nvidia/l4t-jetpack:r36.4.0
 FROM ${L4T_IMAGE}
 
+# Changing an ARG reruns every RUN after its declaration, used or not, so each
+# build argument is declared just before the first step that needs it.
 ARG DEBIAN_FRONTEND=noninteractive
-ARG L4T_MAJOR=36
-ARG L4T_MINOR=4
-ARG ZED_SDK_VERSION=latest
-ARG G2O_TAG=20230806_git
-ARG LART_MSGS_BRANCH=dev
-ARG T26_DBC_BRANCH=main
-ARG XSENS_BRANCH=ros2
-ARG BUILD_JOBS=4
 
 ENV DEBIAN_FRONTEND=${DEBIAN_FRONTEND} \
     LANG=en_US.UTF-8 \
@@ -42,6 +39,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         # build tooling
         build-essential cmake git wget zstd udev sudo less \
+        # CAN tools (candump/cansend)
+        iproute2 can-utils \
         python3-pip python3-dev \
         ros-dev-tools \
         # ROS 2
@@ -52,6 +51,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ros-humble-foxglove-msgs \
         ros-humble-rosbag2 \
         ros-humble-rosbag2-storage-default-plugins \
+        # Humble's default plugins are sqlite3 only, mcap is a separate package
+        ros-humble-rosbag2-storage-mcap \
         ros-humble-tf-transformations \
         ros-humble-ament-cmake-gtest \
         ros-humble-ament-lint-auto \
@@ -71,7 +72,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # --- g2o (graph_slam links g2o_core/g2o_stuff/... by plain name, so it must live in /usr/local)
-RUN git clone --depth 1 -b ${G2O_TAG} https://github.com/RainerKuemmerle/g2o.git /tmp/g2o \
+# G2O_TAG=latest picks the newest release tag at build time. ADD refetches the releases
+# feed on every build and only invalidates this layer when it changes (a new release),
+# so g2o is rebuilt exactly when there is a newer version.
+ARG G2O_TAG=latest
+ARG BUILD_JOBS=4
+ADD https://github.com/RainerKuemmerle/g2o/releases.atom /tmp/g2o-releases.atom
+RUN tag="${G2O_TAG}" \
+    && if [ "$tag" = latest ]; then \
+        tag=$(git ls-remote --tags --refs https://github.com/RainerKuemmerle/g2o.git \
+            | sed 's#.*refs/tags/##' | grep -E '^[0-9]{8}_git$' | sort -V | tail -n1); \
+    fi \
+    && echo "g2o: ${tag}" \
+    && git clone --depth 1 -b "$tag" https://github.com/RainerKuemmerle/g2o.git /tmp/g2o \
     && cmake -S /tmp/g2o -B /tmp/g2o/build \
         -DCMAKE_BUILD_TYPE=Release \
         -DG2O_BUILD_APPS=OFF \
@@ -81,12 +94,15 @@ RUN git clone --depth 1 -b ${G2O_TAG} https://github.com/RainerKuemmerle/g2o.git
     && cmake --build /tmp/g2o/build -j${BUILD_JOBS} \
     && cmake --install /tmp/g2o/build \
     && ldconfig \
-    && rm -rf /tmp/g2o
+    && rm -rf /tmp/g2o /tmp/g2o-releases.atom
 
 # --- ZED SDK ----------------------------------------------------------------------
-# ZED_SDK_VERSION=latest picks the newest release for this L4T at build time.
+# ZED_SDK_VERSION=latest picks the newest release for this platform at build time.
 # Docker caches this layer, so pass a new ZED_SDK_REFRESH value (e.g. the date)
 # to re-check for a newer SDK.
+ARG ZED_SDK_VERSION=latest
+ARG L4T_MAJOR=36
+ARG L4T_MINOR=4
 ARG ZED_SDK_REFRESH=
 COPY docker/install_zed_sdk.sh /tmp/install_zed_sdk.sh
 RUN echo "ZED SDK refresh: ${ZED_SDK_REFRESH}" \
@@ -103,20 +119,30 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip \
     && python3 -m pip install --no-cache-dir setuptools==58.2.0 empy==3.3.4 catkin-pkg
 
 # --- External ROS packages ------------------------------------------------------------
+ARG XSENS_BRANCH=ros2
 WORKDIR /ros2_ws/src/external
-RUN git clone --depth 1 -b ${LART_MSGS_BRANCH} https://github.com/FSLART/lart_msgs.git \
-    && git clone --depth 1 -b ${XSENS_BRANCH} \
+RUN git clone --depth 1 -b ${XSENS_BRANCH} \
         https://github.com/xsenssupport/Xsens_MTi_ROS_Driver_and_Ntrip_Client.git xsens \
     && git clone --depth 1 https://github.com/berndpfrommer/rosbag2_composable_recorder.git
 
+# ADD resolves the branch on every build and refetches when it has moved, so the image
+# always has its latest commit (a RUN git clone layer would stay cached on an old one).
+ARG LART_MSGS_BRANCH=main
+ADD https://github.com/FSLART/lart_msgs.git#${LART_MSGS_BRANCH} /ros2_ws/src/external/lart_msgs
+
 # --- Workspace sources ----------------------------------------------------------------
+# The workspace is the src folder of the build context. Build with the checkout as the
+# context (docker build ... .) to get local changes, a git URL builds the pushed commit.
 COPY src /ros2_ws/src
 
-# The T26_DBC submodule was not carried into the mono-repo; fetch it if empty.
-RUN if [ -z "$(ls -A /ros2_ws/src/can_bridge/include/T26_DBC 2>/dev/null)" ]; then \
-        rm -rf /ros2_ws/src/can_bridge/include/T26_DBC \
-        && git clone --depth 1 -b ${T26_DBC_BRANCH} https://github.com/FSLART/T26_DBC.git \
-            /ros2_ws/src/can_bridge/include/T26_DBC; \
+# T26_DBC is used as checked out in the submodule. A clone without --recursive leaves
+# the folder empty, so the submodule is initialized from T26_DBC_BRANCH in that case.
+ARG T26_DBC_BRANCH=main
+RUN dbc=/ros2_ws/src/can_bridge/include/T26_DBC \
+    && if [ -z "$(ls -A "$dbc" 2>/dev/null)" ]; then \
+        echo "T26_DBC submodule is empty in the build context, cloning ${T26_DBC_BRANCH}" \
+        && rm -rf "$dbc" \
+        && git clone --depth 1 -b ${T26_DBC_BRANCH} https://github.com/FSLART/T26_DBC.git "$dbc"; \
     fi
 
 COPY src/ZED_Bridge/SN39866630.conf /usr/local/zed/settings/SN39866630.conf

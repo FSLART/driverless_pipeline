@@ -1,0 +1,8 @@
+# colcon output from building in the dev container
+build/
+install/
+log/
+# recorded bags for replay in the dev container
+bags/
+# packages from other repositories, cloned by the dev container (external.repos)
+src/external/

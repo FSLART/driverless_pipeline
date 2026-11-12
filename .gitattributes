@@ -1,0 +1,4 @@
+# Everything here is built and run on Linux. Check files out with LF endings on
+# every OS (Git for Windows defaults to CRLF), or the shell scripts copied into
+# the Docker image fail to run.
+* text=auto eol=lf
